@@ -19,17 +19,18 @@ body {
 canvas { display: block; image-rendering: pixelated; }
 #dpad {
   display: none;
-  grid-template-columns: repeat(3, 52px);
-  grid-template-rows: repeat(3, 52px);
-  gap: 4px;
-  margin-top: 16px;
+  grid-template-columns: repeat(3, 44px);
+  grid-template-rows: repeat(3, 44px);
+  gap: 3px;
+  margin-top: 6px;
+  margin-bottom: 1cm;
 }
 #dpad button {
   background: rgba(255,255,255,0.18);
   border: 2px solid rgba(255,255,255,0.3);
-  border-radius: 10px;
+  border-radius: 8px;
   color: white;
-  font-size: 22px;
+  font-size: 18px;
   cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
@@ -85,7 +86,7 @@ const LAYOUT = [
   "#..........................#",
   "#.####.##.########.##.####.#",
   "#.####.##.########.##.####.#",
-  "#......##....##....##......#",
+  "#.....o##....##....##o.....#",
   "######.#####.##.#####.######",
   "######.#####.##.#####.######",
   "######.##          ##.######",
@@ -97,7 +98,7 @@ const LAYOUT = [
   "######.##          ##.######",
   "######.##.########.##.######",
   "######.##.########.##.######",
-  "#............##............#",
+  "#.....o......##......o.....#",
   "#.####.#####.##.#####.####.#",
   "#.####.#####.##.#####.####.#",
   "#o..##................##..o#",
@@ -424,7 +425,7 @@ class Ghost {
     this.moving        = false;
   }
 
-  eatByPacman() { this.mode = GM.Eaten; this.eatenTimer = 4; }
+  eatByPacman() { this.mode = GM.Eaten; } // permanente — não volta nesta fase
 
   _applyDir(d, c, r) {
     if      (d === D.Left)  c--;
@@ -514,11 +515,7 @@ class Ghost {
   }
 
   update(dt, map, pacCol, pacRow, pacDir, blinkyCol, blinkyRow) {
-    if (this.mode === GM.Eaten) {
-      this.eatenTimer -= dt;
-      if (this.eatenTimer <= 0) this.respawn();
-      return;
-    }
+    if (this.mode === GM.Eaten) return; // eliminado permanentemente
     if (this.activDelay > 0) { this.activDelay -= dt; return; }
     if (this.mode === GM.Exiting) { this._updateExiting(dt); return; }
 
@@ -634,12 +631,14 @@ class Game {
 
   fruitPoints()         { return this.level === 1 ? 100 : this.level === 2 ? 300 : 500; }
   getSpeedScale()       { return Math.min(1 + 0.12 * (this.level - 1), 1.8); }
-  getFrightenDuration() { return Math.max(3, 7 - (this.level - 1)); }
+  getFrightenDuration() { return Math.max(5, 12 - 2 * (this.level - 1)); }
+  ghostsActive()        { return Math.min(this.level, this.ghosts.length); }
 
   applyLevelSettings() {
     const sc = this.getSpeedScale();
     this.pacman.speedScale = sc;
-    for (const g of this.ghosts) g.speedScale = sc;
+    const n = this.ghostsActive();
+    for (let i = 0; i < n; i++) this.ghosts[i].speedScale = sc;
   }
 
   startNewGame() {
@@ -679,7 +678,9 @@ class Game {
       SFX.eatGhost();
     }
 
-    for (const ghost of this.ghosts) {
+    const na = this.ghostsActive();
+    for (let i = 0; i < na; i++) {
+      const ghost = this.ghosts[i];
       if (ghost.isEaten || ghost.col !== pc || ghost.row !== pr) continue;
       if (ghost.isFrightened) {
         ghost.eatByPacman();
@@ -737,7 +738,8 @@ class Game {
     else if (eaten === T.PowerPellet) {
       this.score += 50;
       SFX.powerPellet();
-      for (const g of this.ghosts) g.frighten(this.getFrightenDuration());
+      const nf = this.ghostsActive();
+      for (let i = 0; i < nf; i++) this.ghosts[i].frighten(this.getFrightenDuration());
       this.eatCombo = 1;
     }
 
@@ -751,9 +753,10 @@ class Game {
     }
 
     const bc = this.ghosts[0].col, br = this.ghosts[0].row;
-    for (const g of this.ghosts)
-      g.update(dt, this.map, this.pacman.col, this.pacman.row,
-               this.pacman.currentDir, bc, br);
+    const ng = this.ghostsActive();
+    for (let i = 0; i < ng; i++)
+      this.ghosts[i].update(dt, this.map, this.pacman.col, this.pacman.row,
+                            this.pacman.currentDir, bc, br);
 
     this.checkCollisions();
 
@@ -824,7 +827,8 @@ class Game {
       ctx.fillRect(fx - 1, fy - 13, 2, 6);
     }
 
-    for (const g of this.ghosts) g.render(ctx);
+    const nr = this.ghostsActive();
+    for (let i = 0; i < nr; i++) this.ghosts[i].render(ctx);
     this.pacman.render(ctx);
 
     if (this.levelTimer > 0) {
@@ -950,6 +954,10 @@ function loop(ts) {
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
+
+document.addEventListener("contextmenu", function (e) {
+  e.preventDefault();
+});
 </script>
 </body>
 </html>
